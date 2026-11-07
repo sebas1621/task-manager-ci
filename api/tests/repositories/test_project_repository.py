@@ -118,3 +118,23 @@ def test_list_all_builds_select_ordered_by_id(
     repository.list_all()
 
     assert "ORDER BY projects.id" in str(_executed_select(session).compile())
+
+
+def test_get_by_id_when_found_returns_project(
+    repository: ProjectRepository, session: MagicMock
+) -> None:
+    """get_by_id delegates to session.get and returns the row."""
+    project = Project(name="Alpha")
+    session.get.return_value = project
+
+    assert repository.get_by_id(1) is project
+    session.get.assert_called_once_with(Project, 1)
+
+
+def test_get_by_id_when_missing_returns_none(
+    repository: ProjectRepository, session: MagicMock
+) -> None:
+    """No row means None."""
+    session.get.return_value = None
+
+    assert repository.get_by_id(99) is None

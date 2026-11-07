@@ -5,7 +5,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.errors import register_exception_handlers
-from app.core.exceptions import ConflictError, DuplicateProjectNameError
+from app.core.exceptions import (
+    BusinessRuleError,
+    ConflictError,
+    DuplicateProjectNameError,
+    NotFoundError,
+)
 
 
 @pytest.fixture
@@ -26,6 +31,14 @@ def client() -> TestClient:
     def conflict() -> None:
         raise ConflictError("generic conflict")
 
+    @app.get("/not-found")
+    def not_found() -> None:
+        raise NotFoundError("missing thing")
+
+    @app.get("/rule")
+    def rule() -> None:
+        raise BusinessRuleError("rule broken")
+
     return TestClient(app)
 
 
@@ -43,3 +56,19 @@ def test_conflict_error_returns_409_with_detail(client: TestClient) -> None:
 
     assert response.status_code == 409
     assert response.json() == {"detail": "generic conflict"}
+
+
+def test_not_found_error_returns_404_with_detail(client: TestClient) -> None:
+    """Any NotFoundError maps to 404."""
+    response = client.get("/not-found")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "missing thing"}
+
+
+def test_business_rule_error_returns_422_with_detail(client: TestClient) -> None:
+    """Any BusinessRuleError maps to 422."""
+    response = client.get("/rule")
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "rule broken"}
