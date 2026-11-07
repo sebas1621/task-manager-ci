@@ -11,6 +11,7 @@ from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
 from app.services.health_service import HealthService
 from app.services.project_service import ProjectService
+from app.services.report_service import ReportService
 from app.services.task_service import TaskService
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -91,3 +92,21 @@ def get_task_service(
         A TaskService instance.
     """
     return TaskService(task_repository, project_repository, clock)
+
+
+def get_report_service(
+    task_repository: Annotated[TaskRepository, Depends(get_task_repository)],
+    project_repository: Annotated[ProjectRepository, Depends(get_project_repository)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> ReportService:
+    """Build a report service around its collaborators.
+
+    Args:
+        task_repository: Task repository for the current request.
+        project_repository: Project repository for the current request.
+        clock: Time source.
+
+    Returns:
+        A ReportService instance.
+    """
+    return ReportService(task_repository, project_repository, clock)
