@@ -1,5 +1,7 @@
 # task-manager-ci
 
+[![CI](https://github.com/sebas1621/task-manager-ci/actions/workflows/ci.yml/badge.svg)](https://github.com/sebas1621/task-manager-ci/actions/workflows/ci.yml)
+
 A small task manager REST API (FastAPI + SQLAlchemy + Alembic) backed by PostgreSQL 17,
 packaged as two Docker containers orchestrated with Docker Compose. The app is a vehicle to
 demonstrate Docker, container communication and continuous integration.
@@ -59,6 +61,16 @@ docker compose logs api     # API logs (includes the Alembic migration output)
 docker compose down         # stop and remove containers; keep the database volume
 docker compose down -v      # also delete the database volume (data is lost)
 ```
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request:
+
+1. `lint-test`: `ruff check`, `ruff format --check` and `pytest` with coverage (pip cache enabled).
+2. `docker` (after `lint-test`): builds the `task-manager-api` image with Buildx and the GitHub
+   Actions layer cache, runs `docker compose up -d --no-build --wait` with a `.env` made from `.env.example`,
+   then a smoke test: `/health`, create a project, create a task, list tasks and read the summary.
+   The stack is always removed with `docker compose down -v`.
 
 ## Local development (tests and lint)
 
