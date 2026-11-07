@@ -53,3 +53,12 @@ def test_create_app_openapi_endpoint_returns_schema_with_title() -> None:
 
     assert response.status_code == 200
     assert response.json()["info"]["title"] == "Test App"
+
+
+def test_create_app_registers_health_route() -> None:
+    """The /health route is part of the application."""
+    app = create_app(_settings())
+
+    paths = app.openapi()["paths"]
+
+    assert "/health" in paths
