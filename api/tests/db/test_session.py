@@ -25,12 +25,14 @@ def clear_db_caches() -> Iterator[None]:
 
 @pytest.mark.usefixtures("full_env")
 def test_get_engine_creates_engine_with_settings_url_and_pre_ping() -> None:
-    """The engine is built from the settings URL with pool_pre_ping."""
+    """The engine uses the settings URL, pool_pre_ping and a connect timeout."""
     with patch("app.db.session.create_engine") as create_engine:
         engine = get_engine()
 
     create_engine.assert_called_once_with(
-        get_settings().database_url, pool_pre_ping=True
+        get_settings().database_url,
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5},
     )
     assert engine is create_engine.return_value
 
