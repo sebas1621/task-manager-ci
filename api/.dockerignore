@@ -1,0 +1,41 @@
+# Keep the build context small and keep secrets/dev files out of the image.
+
+# Version control and editor/agent files
+.git
+.gitignore
+.claude
+.vscode
+.idea
+CLAUDE.md
+
+# Secrets (never baked into an image)
+.env
+.env.*
+
+# Virtual environments
+.venv
+venv
+env
+
+# Python bytecode and caches
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Tests and coverage
+tests
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+
+# Dev-only dependencies and tooling config
+requirements-dev.txt
+pyproject.toml
+
+# Docs and Docker files (not needed at runtime)
+*.md
+Dockerfile
+.dockerignore
