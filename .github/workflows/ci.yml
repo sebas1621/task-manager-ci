@@ -1,0 +1,128 @@
+name: CI
+
+# Every push and every pull request (any branch) is checked.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: the workflow only needs to read the repository.
+permissions:
+  contents: read
+
+# A newer run on the same ref cancels the older one (saves minutes).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: Lint and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # Do not keep the GitHub token in .git/config.
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.12"
+          # pip cache keyed on the dependency files.
+          cache: pip
+          cache-dependency-path: |
+            api/requirements.txt
+            api/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      # Coverage and the fail-under threshold are configured in api/pyproject.toml.
+      - name: Unit tests with coverage
+        run: pytest
+
+  docker:
+    name: Build images and smoke test
+    needs: lint-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # Do not keep the GitHub token in .git/config.
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v4.4.1
+
+      # Build the API image and load it into the local Docker daemon under the
+      # tag docker-compose.yml uses. Layers are cached in the GitHub Actions cache.
+      - name: Build API image
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: api
+          push: false
+          load: true
+          tags: task-manager-api:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # .env is never committed; CI builds it from the example (fake values).
+      - name: Create .env from .env.example
+        run: cp .env.example .env
+
+      # --no-build: Compose must use the image built above (fails if it is
+      # missing instead of silently rebuilding). --wait blocks until the
+      # healthchecks of db and api pass.
+      - name: Start the stack
+        run: docker compose up -d --no-build --wait --wait-timeout 120
+
+      - name: Smoke test (API to DB round trip)
+        run: |
+          set -euo pipefail
+          BASE=http://localhost:8000
+          JSON='Content-Type: application/json'
+
+          echo "== GET /health"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-connrefused "$BASE/health" | tee /dev/stderr | jq -e '.status == "ok" and .database == "ok"'
+
+          echo "== POST /projects"
+          project=$(curl --fail --silent --show-error -X POST "$BASE/projects" -H "$JSON" -d '{"name":"CI smoke"}')
+          echo "$project"
+          project_id=$(echo "$project" | jq -er '.id')
+
+          echo "== POST /tasks"
+          task=$(curl --fail --silent --show-error -X POST "$BASE/tasks" -H "$JSON" \
+            -d "{\"project_id\": $project_id, \"title\": \"CI smoke task\"}")
+          echo "$task"
+          echo "$task" | jq -e '.status == "todo" and .is_overdue == false'
+
+          echo "== GET /tasks?project_id=$project_id"
+          tasks=$(curl --fail --silent --show-error "$BASE/tasks?project_id=$project_id")
+          echo "$tasks"
+          echo "$tasks" | jq -e 'any(.[]; .title == "CI smoke task")'
+
+          echo "== GET /reports/projects/$project_id/summary"
+          summary=$(curl --fail --silent --show-error "$BASE/reports/projects/$project_id/summary")
+          echo "$summary"
+          echo "$summary" | jq -e '.total_tasks == 1'
+
+      - name: Show container state and logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs
+
+      # Always clean up, including the database volume.
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
