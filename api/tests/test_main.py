@@ -62,3 +62,12 @@ def test_create_app_registers_health_route() -> None:
     paths = app.openapi()["paths"]
 
     assert "/health" in paths
+
+
+def test_create_app_registers_projects_route() -> None:
+    """The /projects route is part of the application."""
+    app = create_app(_settings())
+
+    paths = app.openapi()["paths"]
+
+    assert "/projects" in paths
