@@ -9,6 +9,7 @@ from app.api.deps import (
     get_health_service,
     get_project_repository,
     get_project_service,
+    get_report_service,
     get_task_repository,
     get_task_service,
 )
@@ -17,6 +18,7 @@ from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
 from app.services.health_service import HealthService
 from app.services.project_service import ProjectService
+from app.services.report_service import ReportService
 from app.services.task_service import TaskService
 
 
@@ -80,4 +82,18 @@ def test_get_task_service_with_collaborators_returns_service() -> None:
 
     assert isinstance(service, TaskService)
     assert service.list_tasks() == []
+    task_repository.list.assert_called_once()
+
+
+def test_get_report_service_with_collaborators_returns_service() -> None:
+    """The provider builds a ReportService around its collaborators."""
+    task_repository = MagicMock(spec=TaskRepository)
+    task_repository.list.return_value = []
+    project_repository = MagicMock(spec=ProjectRepository)
+
+    service = get_report_service(task_repository, project_repository, SystemClock())
+
+    assert isinstance(service, ReportService)
+    assert service.project_summary(1).total_tasks == 0
+    project_repository.get_by_id.assert_called_once_with(1)
     task_repository.list.assert_called_once()

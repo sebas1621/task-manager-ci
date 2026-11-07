@@ -73,6 +73,15 @@ def test_create_app_registers_projects_route() -> None:
     assert "/projects" in paths
 
 
+def test_create_app_registers_report_summary_route() -> None:
+    """The project summary route is part of the application."""
+    app = create_app(_settings())
+
+    paths = app.openapi()["paths"]
+
+    assert "/reports/projects/{project_id}/summary" in paths
+
+
 @pytest.mark.parametrize(
     "path", ["/tasks", "/tasks/{task_id}/status", "/tasks/{task_id}"]
 )

@@ -13,6 +13,23 @@ TaskTitle = Annotated[
 ]
 
 
+def is_overdue(task: Task, today: date) -> bool:
+    """Tell whether a task is past due and not done.
+
+    Args:
+        task: The task to check.
+        today: Reference date.
+
+    Returns:
+        True when the due date is before ``today`` and the task is not done.
+    """
+    return (
+        task.due_date is not None
+        and task.due_date < today
+        and task.status != TaskStatus.DONE
+    )
+
+
 class TaskCreate(BaseModel):
     """Payload to create a task.
 
@@ -89,9 +106,5 @@ class TaskRead(BaseModel):
             due_date=task.due_date,
             created_at=task.created_at,
             completed_at=task.completed_at,
-            is_overdue=(
-                task.due_date is not None
-                and task.due_date < today
-                and task.status != TaskStatus.DONE
-            ),
+            is_overdue=is_overdue(task, today),
         )
