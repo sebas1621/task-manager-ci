@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from app.api.errors import register_exception_handlers
-from app.api.routers import health, projects
+from app.api.routers import health, projects, tasks
 from app.core.config import Settings, get_settings
 
 
@@ -21,4 +21,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(projects.router)
+    app.include_router(tasks.router)
     return app

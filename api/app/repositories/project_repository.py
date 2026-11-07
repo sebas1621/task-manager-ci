@@ -31,6 +31,17 @@ class ProjectRepository:
         self._session.refresh(project)
         return project
 
+    def get_by_id(self, project_id: int) -> Project | None:
+        """Find a project by primary key.
+
+        Args:
+            project_id: The project id.
+
+        Returns:
+            The matching project, or None.
+        """
+        return self._session.get(Project, project_id)
+
     def get_by_name(self, name: str) -> Project | None:
         """Find a project by exact name.
 
