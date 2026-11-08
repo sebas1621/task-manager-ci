@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.models.enums import TaskPriority, TaskStatus
 from app.models.task import Task
-from app.schemas.task import TaskCreate, TaskRead, TaskStatusUpdate
+from app.schemas.task import TaskCreate, TaskRead, TaskStatusUpdate, is_overdue
 
 TODAY = date(2026, 11, 7)
 CREATED_AT = datetime(2026, 11, 1, 8, 0, tzinfo=UTC)
@@ -152,3 +152,23 @@ def test_task_read_from_task_computes_is_overdue(
     result = TaskRead.from_task(_task(due_date, status, completed), TODAY)
 
     assert result.is_overdue is expected
+
+
+@pytest.mark.parametrize(
+    ("due_date", "status", "expected"),
+    [
+        (None, TaskStatus.TODO, False),
+        (date(2026, 11, 6), TaskStatus.TODO, True),
+        (date(2026, 11, 6), TaskStatus.IN_PROGRESS, True),
+        (date(2026, 11, 6), TaskStatus.DONE, False),
+        (TODAY, TaskStatus.TODO, False),
+        (date(2026, 11, 8), TaskStatus.TODO, False),
+    ],
+)
+def test_is_overdue_with_due_date_and_status_returns_expected(
+    due_date: date | None, status: TaskStatus, expected: bool
+) -> None:
+    """Only past due dates on unfinished tasks are overdue."""
+    task = _task(due_date, status)
+
+    assert is_overdue(task, TODAY) is expected
